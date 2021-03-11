@@ -54,9 +54,16 @@ usersRouter.post("/register", async (req, res, next) => {
   try {
     const newUser = new UserSchema({ img: "https://thumbs.dreamstime.com/b/default-avatar-profile-trendy-style-social-media-user-icon-187599373.jpg", ...req.body });
     const { _id } = await newUser.save();
-    res.status(201).send({ _id });
+    if (_id) {
+      res.status(201).send({ _id });
+    } else {
+      res.status(400).send({ errorCode: "wrong_credentials" });
+    }
   } catch (error) {
-    next(error);
+    res.status(400).send({
+      message: error.message,
+      errorCode: "wrong_credentials",
+    });
   }
 });
 
@@ -80,11 +87,14 @@ usersRouter.post("/login", async (req, res, next) => {
       res.status(201).send({ ok: true });
     } else {
       const err = new Error("User with email and password not found");
-      err.status = 401;
+      err.httpStatusCode = 401;
       next(err);
     }
   } catch (error) {
-    next(error);
+    res.status(401).send({
+      message: error.message,
+      errorCode: "wrong_credentials",
+    });
   }
 });
 
@@ -107,7 +117,7 @@ usersRouter.post("/logOut", authorize, async (req, res, next) => {
       res.status(201).send({ ok: true });
     } else {
       const err = new Error("Token not provided");
-      err.status = 401;
+      err.httpStatusCode = 401;
       next(err);
     }
   } catch (error) {

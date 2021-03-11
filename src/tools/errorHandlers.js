@@ -5,6 +5,12 @@ const badRequestHandler = (err, req, res, next) => {
   next(err);
 };
 
+const wrongCredentials = (err, req, res, next) => {
+  if (err.httpStatusCode === 401) {
+    res.status(401).send(err.message);
+  }
+  next(err);
+};
 const notFoundHandler = (err, req, res, next) => {
   if (err.httpStatusCode === 404) {
     res.status(404).send(err.message);
@@ -29,4 +35,5 @@ module.exports = {
   notFoundHandler,
   forbiddenHandler,
   genericErrorHandler,
+  wrongCredentials,
 };

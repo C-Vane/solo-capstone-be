@@ -1,14 +1,16 @@
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const { join } = require("path");
 const listEndpoints = require("express-list-endpoints");
 const mongoose = require("mongoose");
 const http = require("http");
+
 //const createSocketServer = require("./socket");
 
 const servicesRouter = require("./services");
 
-const { notFoundHandler, forbiddenHandler, badRequestHandler, genericErrorHandler } = require("./tools/errorHandlers");
+const { notFoundHandler, forbiddenHandler, badRequestHandler, genericErrorHandler, wrongCredentials } = require("./tools/errorHandlers");
 
 const passport = require("passport");
 
@@ -46,6 +48,10 @@ server.use(cors(corsOptions));
 
 server.use(passport.initialize());
 
+server.get("/test", (req, res) => {
+  res.status(200).send({ message: "Test success" });
+});
+
 server.use("/", servicesRouter);
 
 // ERROR HANDLERS MIDDLEWARES
@@ -53,18 +59,23 @@ server.use("/", servicesRouter);
 server.use(badRequestHandler);
 server.use(notFoundHandler);
 server.use(forbiddenHandler);
+server.use(wrongCredentials);
 server.use(genericErrorHandler);
 
 console.log(listEndpoints(server));
-
-mongoose
-  .connect(process.env.MONGO_CONNECTION, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(
-    httpServer.listen(port, () => {
-      console.log("Running on port", port);
+if (process.env.TEST_ENV === "production") {
+  mongoose
+    .connect(process.env.MONGO_CONNECTION + "/VideoChat", {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
     })
-  )
-  .catch((err) => console.log(err));
+    .then(
+      httpServer.listen(port, () => {
+        console.log("Running on port", port);
+      })
+    )
+    .catch((err) => console.log(err));
+  console.log(process.env.MONGO_CONNECTION);
+}
+
+module.exports = server;
