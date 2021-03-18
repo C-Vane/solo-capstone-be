@@ -163,4 +163,22 @@ usersRouter.post("/refreshToken", async (req, res, next) => {
   }
 });
 
+//user routes
+
+usersRouter.get("/me", authorize, async (req, res, next) => {
+  try {
+    if (req.user) {
+      const userObject = req.user.toObject();
+      delete userObject.password;
+      delete userObject.refreshTokens;
+      delete userObject.__v;
+      res.status(200).send(userObject);
+    } else {
+      error.httpStatusCode = 404;
+      next(error);
+    }
+  } catch (error) {
+    next(error);
+  }
+});
 module.exports = usersRouter;

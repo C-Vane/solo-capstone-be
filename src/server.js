@@ -5,8 +5,8 @@ const { join } = require("path");
 const listEndpoints = require("express-list-endpoints");
 const mongoose = require("mongoose");
 const http = require("http");
-
-//const createSocketServer = require("./socket");
+const createSocketServer = require("./socket");
+const { ExpressPeerServer } = require("peer");
 
 const servicesRouter = require("./services");
 
@@ -19,8 +19,11 @@ const oauth = require("./services/auth/oauth");
 const cookieParser = require("cookie-parser");
 
 const server = express();
+
 const httpServer = http.createServer(server);
-//createSocketServer(httpServer);
+
+//socket  server
+createSocketServer(httpServer);
 
 const port = process.env.PORT || 3001;
 
@@ -46,12 +49,24 @@ const corsOptions = {
 };
 server.use(cors(corsOptions));
 
+//peer server
+const peerServer = ExpressPeerServer(server, {
+  debug: true,
+  path: "/",
+  // generateClientId: customGenerationFunction,
+});
+
+server.use("/mypeer", peerServer);
+
+//oAuth
 server.use(passport.initialize());
 
+//test
 server.get("/test", (req, res) => {
   res.status(200).send({ message: "Test success" });
 });
 
+//services
 server.use("/", servicesRouter);
 
 // ERROR HANDLERS MIDDLEWARES
@@ -63,7 +78,8 @@ server.use(wrongCredentials);
 server.use(genericErrorHandler);
 
 console.log(listEndpoints(server));
-if (process.env.TEST_ENV === "production") {
+
+if (process.env.TEST_ENV !== "testing") {
   mongoose
     .connect(process.env.MONGO_CONNECTION + "/VideoChat", {
       useNewUrlParser: true,
@@ -75,7 +91,6 @@ if (process.env.TEST_ENV === "production") {
       })
     )
     .catch((err) => console.log(err));
-  console.log(process.env.MONGO_CONNECTION);
 }
 
 module.exports = server;
