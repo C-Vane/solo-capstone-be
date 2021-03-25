@@ -1,11 +1,17 @@
 require("dotenv").config();
+
 const express = require("express");
+
 const cors = require("cors");
+
 const { join } = require("path");
+
 const listEndpoints = require("express-list-endpoints");
+
 const mongoose = require("mongoose");
-const http = require("http");
+
 const createSocketServer = require("./socket");
+
 const { ExpressPeerServer } = require("peer");
 
 const servicesRouter = require("./services");
@@ -20,10 +26,11 @@ const cookieParser = require("cookie-parser");
 
 const server = express();
 
-const httpServer = http.createServer(server);
+const httpServer = require("http").Server(server);
 
 //socket  server
-createSocketServer(httpServer);
+const io = require("socket.io")(httpServer);
+createSocketServer(io);
 
 const port = process.env.PORT || 3001;
 
@@ -47,16 +54,8 @@ const corsOptions = {
   },
   credentials: true,
 };
+
 server.use(cors(corsOptions));
-
-//peer server
-const peerServer = ExpressPeerServer(server, {
-  debug: true,
-  path: "/",
-  // generateClientId: customGenerationFunction,
-});
-
-server.use("/mypeer", peerServer);
 
 //oAuth
 server.use(passport.initialize());

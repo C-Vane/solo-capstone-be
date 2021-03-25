@@ -1,59 +1,109 @@
-const socket = require("socket.io");
+const { findElementByObjectKey } = require("./services/auth/tools");
 const roomSchema = require("./services/rooms/schema");
+const userSchema = require("./services/users/schema");
 
-const createSocketServer = (server) => {
-  const io = socket(server);
-
+const createSocketServer = (io) => {
   io.on("connection", (socket) => {
     socket.on("join-room", async (roomId, userId) => {
       try {
         //check if room exists
         const room = await roomSchema.findById(roomId);
-        if (room) {
-          const userAdmited = room.users.includes(userId);
-          if (room.admin === userId || userAdmited) {
-            socket.join(roomId);
-            socket.to(roomId).broadcast.emit("user-connected", `${userId} has joined the room`);
-          } else {
-            socket.to(roomId).broadcast.emit("user-requested", userId, socket.id);
-          }
+
+        if (!room) throw new Error("Couldn't find room");
+
+        if (room.admin._id == userId) {
+          //if the user is the admin join
+          socket.join(roomId);
+          room.admin.socketId = socket.id;
+          await room.save();
+
+          socket.to(roomId).emit("user-connected", `${userId} has joined the room`);
         } else {
-          socket.emit({ error: "Room not found", status: 404 });
+          //check if the room is private
+          if (room && room.private) {
+            const userAdmited = findElementByObjectKey(room.users, ["userId", "username"], userId);
+
+            //check if user has already been admited
+            if (userAdmited !== -1) {
+              //if the user has already been admited join the room and update the socket id
+              socket.join(roomId);
+
+              socket.to(roomId).emit("user-connected", `${userId} has joined the room`);
+              socket.emit("all-users", [...room.users, room.admin]);
+              room.users[userAdmited].socketId = socket.id;
+              await room.save();
+            } else {
+              //if the user is new request to join room
+              const user = userId.length === 24 ? await userSchema.findById(userId) : false;
+              const data = user ? { socketId: socket.id, userId: user._id, username: `${user.firstname} ${user.lastname}  ` } : { socketId: socket.id, username: userId };
+              room.waitingList = [...room.waitingList, data];
+              await room.save();
+              socket.to(room.admin.socketId).emit("user-requested", { userId, socketId: socket.id });
+            }
+          } else {
+            //if the room is public
+            socket.join(roomId);
+            socket.to(roomId).emit("user-connected", `${userId} has joined the room`);
+            socket.emit("all-users", [...room.users, room.admin]);
+            const user = userId.length === 24 ? await userSchema.findById(userId) : false;
+            const data = user ? { socketId: socket.id, userId: user._id } : { socketId: socket.id, username: userId };
+            room.users.push(data);
+            await room.save();
+          }
         }
+        socket.on("disconnect", async () => {
+          //when the user disconnectes if the user is the admin delete room
+          socket.to(roomId).broadcast.emit("user-disconnected", socket.id);
+          try {
+            if (room.admin._id == userId) {
+              await roomSchema.findOneAndDelete({ _id: roomId, "admin._id": userId });
+            }
+          } catch (err) {
+            console.log(err);
+          }
+        });
       } catch (error) {
         console.log(error);
       }
-      socket.on("disconnect", () => {
-        socket.to(roomId).broadcast.emit("user-diconnected", userId);
-      });
     });
-    socket.on("admit-user", async (roomId, adminId, userId, socketId) => {
-      //check if room with current id exists
-      const room = await roomSchema.findOne({ _id: roomId, admin: adminId });
-      if (room) {
-        room.users.push(userId);
-        await room.save();
-        io.sockets.connected[socketId].join(room);
-        socket.to(roomId).broadcast.emit("user-connected", `${userId} has joined the room`);
-      } else {
-        socket.emit("error", "Room not found");
-      }
+
+    socket.on("sending-signal", (payload) => {
+      console.log(payload);
+      io.to(payload.userToSignal.socketId).emit("user-joined", { signal: payload.signal, callerID: socket.id });
     });
-    socket.on("admit-user", async (roomId, adminId, userId, socketId) => {
+
+    socket.on("returning-signal", (payload) => {
+      io.to(payload.callerID).emit("receiving-returned-signal", { signal: payload.signal, id: socket.id });
+    });
+
+    socket.on("admit-user", async (payload) => {
+      const { roomId, adminId, userId, socketId } = payload;
       //check if room with current id exists
-      const room = await roomSchema.findOne({ _id: roomId, admin: adminId });
-      if (room) {
-        room.users.push(userId);
-        await room.save();
-        io.sockets.connected[socketId].join(room);
-        socket.to(roomId).broadcast.emit("user-connected", `${userId} has joined the room`);
-      } else {
-        socket.emit({ error: "Room not found", status: 404 });
+      try {
+        const room = await roomSchema.findOne({ _id: roomId, "admin._id": adminId });
+        const user = userId.length === 24 ? await userSchema.findById(userId) : false;
+        const data = user ? { socketId, userId: user._id } : { socketId, username: userId };
+
+        if (room) {
+          io.sockets.connected[socketId].join(roomId);
+          socket.emit("user-connected", `${userId} has joined the room`);
+          socket.to(socketId).emit("all-users", [...room.users, room.admin]);
+          room.users.push(data);
+          room.waitingList = room.waitingList.filter((user) => user.userId !== userId && user.username !== userId);
+          await room.save();
+        } else {
+          socket.emit("error", "Room not found");
+        }
+      } catch (error) {
+        console.log(error);
       }
     });
 
     socket.on("subtitles", (roomId, subtitles, user) => {
       socket.to(roomId).broadcast.emit("subtitles", { subtitles, user });
+    });
+    socket.on("message", (roomId, user, message) => {
+      socket.to(roomId).broadcast.emit("message", { user, message });
     });
   });
 };

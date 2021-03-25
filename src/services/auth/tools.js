@@ -73,4 +73,17 @@ const refreshToken = async (oldRefreshToken) => {
   return { token: newAccessToken, refreshToken: newRefreshToken };
 };
 
-module.exports = { authenticate, verifyJWT, refreshToken };
+const findElementByObjectKey = (array, key, value) => {
+  let found = -1;
+  for (let j = 0; j < key.length; j++) {
+    for (let i = 0; i < array.length; i++) {
+      if (array[i][key[j]] == value) {
+        found = i;
+        break;
+      }
+    }
+  }
+  return found;
+};
+
+module.exports = { authenticate, verifyJWT, refreshToken, findElementByObjectKey };
