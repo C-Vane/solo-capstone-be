@@ -68,7 +68,6 @@ const createSocketServer = (io) => {
     });
 
     socket.on("sending-signal", (payload) => {
-      console.log(payload);
       io.to(payload.userToSignal.socketId).emit("user-joined", { signal: payload.signal, callerID: socket.id });
     });
 
