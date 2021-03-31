@@ -8,8 +8,7 @@
     "test": "jest",
     "dev": "nodemon ./src/server.js",
     "debug": "nodemon --inspect -r dotenv/config ./src/server.js",
-    "start": "node ./src/server.js",
-    "heroku-postbuild": "jest"
+    "start": "node ./src/server.js"
   },
   "repository": {
     "type": "git",
