@@ -10,7 +10,7 @@ const mongoose = require("mongoose");
 
 const createSocketServer = require("./socket");
 
-const { ExpressPeerServer } = require("peer");
+const helmet = require("helmet");
 
 const servicesRouter = require("./services");
 
@@ -53,7 +53,7 @@ const corsOptions = {
   },
   credentials: true,
 };
-
+server.use(helmet());
 server.use(cors(corsOptions));
 
 //oAuth
@@ -90,5 +90,4 @@ if (process.env.TEST_ENV !== "testing") {
     )
     .catch((err) => console.log(err));
 }
-
-module.exports = server;
+//module.exports = server;
