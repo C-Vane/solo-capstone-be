@@ -30,9 +30,11 @@ const httpServer = require("http").Server(server);
 
 //socket  server
 const io = require("socket.io")(httpServer);
+
 createSocketServer(io);
 
 const port = process.env.PORT || 3000;
+
 
 const staticFolderPath = join(__dirname, "../public");
 
@@ -42,7 +44,7 @@ server.use(express.json());
 
 server.use(cookieParser());
 
-const whitelist = [process.env.FE_URL, process.env.PROD_URL];
+const whitelist = [process.env.FE_DEV_URL, process.env.FE_PROD_URL];
 
 const corsOptions = {
   origin: (origin, callback) => {
