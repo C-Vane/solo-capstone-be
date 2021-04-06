@@ -30,9 +30,10 @@ const httpServer = require("http").Server(server);
 
 //socket  server
 const io = require("socket.io")(httpServer);
+
 createSocketServer(io);
 
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 8080;
 
 const staticFolderPath = join(__dirname, "../public");
 
@@ -42,7 +43,7 @@ server.use(express.json());
 
 server.use(cookieParser());
 
-const whitelist = [process.env.FE_URL, process.env.PROD_URL];
+const whitelist = [process.env.FE_DEV_URL, process.env.FE_PROD_URL];
 
 const corsOptions = {
   origin: (origin, callback) => {
@@ -85,7 +86,7 @@ if (process.env.TEST_ENV !== "testing") {
       useUnifiedTopology: true,
     })
     .then(
-      server.listen(port, () => {
+      httpServer.listen(port, () => {
         console.log("Running on port", port);
       })
     )
