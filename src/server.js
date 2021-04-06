@@ -85,7 +85,7 @@ if (process.env.TEST_ENV !== "testing") {
       useUnifiedTopology: true,
     })
     .then(
-      httpServer.listen(port, () => {
+      server.listen(port, () => {
         console.log("Running on port", port);
       })
     )
