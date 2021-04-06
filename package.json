@@ -8,7 +8,7 @@
     "test": "jest",
     "dev": "nodemon -r dotenv/config ./src/server.js",
     "debug": "nodemon --inspect -r dotenv/config ./src/server.js",
-    "start": "node  -r dotenv/config ./src/server.js"
+    "start": "node ./src/server.js"
   },
   "repository": {
     "type": "git",
