@@ -35,6 +35,7 @@ createSocketServer(io);
 
 const port = process.env.PORT || 8080;
 
+
 const staticFolderPath = join(__dirname, "../public");
 
 server.use(express.static(staticFolderPath));
