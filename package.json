@@ -8,7 +8,7 @@
     "test": "jest",
     "dev": "nodemon -r dotenv/config ./src/server.js",
     "debug": "nodemon --inspect -r dotenv/config ./src/server.js",
-    "start": "node -r dotenv/config ./src/server.js"
+    "start": "node ./src/server.js"
   },
   "repository": {
     "type": "git",
@@ -30,6 +30,7 @@
     "express": "^4.17.1",
     "express-list-endpoints": "^5.0.0",
     "express-validator": "^6.9.2",
+    "helmet": "^4.4.1",
     "jest": "^26.6.3",
     "jsonwebtoken": "^8.5.1",
     "mongoose": "^5.11.11",
