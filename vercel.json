@@ -1,0 +1,16 @@
+{
+    "version": 1,
+    "name": "solo-capstone-be",
+    "builds": [
+        {
+            "src": "./src/server.js",
+            "use": "@vercel/node"
+        }
+    ],
+    "routes": [
+        {
+            "src": "/src",
+            "dest": "/server.js"
+        }
+    ]
+}
