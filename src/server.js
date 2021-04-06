@@ -1,5 +1,3 @@
-require("dotenv").config();
-
 const express = require("express");
 
 const cors = require("cors");
@@ -34,7 +32,6 @@ const io = require("socket.io")(httpServer);
 createSocketServer(io);
 
 const port = process.env.PORT || 8080;
-
 
 const staticFolderPath = join(__dirname, "../public");
 
