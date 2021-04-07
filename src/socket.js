@@ -109,6 +109,7 @@ const createSocketServer = (io) => {
           await roomSchema.findByIdAndDelete(roomId);
           socket.to(roomId).emit("call-end");
         }
+        socket.leave(roomId);
       } catch (error) {
         console.log(error);
       }
