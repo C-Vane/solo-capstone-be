@@ -52,15 +52,8 @@ const createSocketServer = (io) => {
           }
         }
         socket.on("disconnect", async () => {
-          //when the user disconnectes if the user is the admin delete room
-          socket.to(roomId).broadcast.emit("user-disconnected", socket.id);
           try {
-            if (room.admin._id == userId) {
-              await roomSchema.findOneAndDelete({ _id: roomId, "admin._id": userId });
-              socket.to(roomId).emit("call-end");
-            } else {
-              socket.to(roomId).emit("user-left", userId);
-            }
+            socket.to(roomId).emit("user-disconnected", userId);
           } catch (err) {
             console.log(err);
           }
@@ -104,8 +97,21 @@ const createSocketServer = (io) => {
     socket.on("subtitles", (roomId, subtitles, user) => {
       socket.to(roomId).broadcast.emit("subtitles", { subtitles, user });
     });
+
     socket.on("message", (roomId, user, message) => {
       socket.to(roomId).broadcast.emit("message", { user, message });
+    });
+
+    socket.on("end-call", async (roomId, userId) => {
+      try {
+        const room = await roomSchema.findById(roomId);
+        if (room && room.admin._id == userId) {
+          await roomSchema.findByIdAndDelete(roomId);
+          socket.to(roomId).emit("call-end");
+        }
+      } catch (error) {
+        console.log(error);
+      }
     });
   });
 };
