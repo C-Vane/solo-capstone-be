@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const express = require("express");
 
 const cors = require("cors");
@@ -21,6 +23,7 @@ const passport = require("passport");
 const oauth = require("./services/auth/oauth");
 
 const cookieParser = require("cookie-parser");
+const { config } = require("process");
 
 const server = express();
 
@@ -90,4 +93,5 @@ if (process.env.TEST_ENV !== "testing") {
     )
     .catch((err) => console.log(err));
 }
-//module.exports = server;
+
+module.exports = server;
