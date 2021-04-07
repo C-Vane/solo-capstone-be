@@ -87,7 +87,7 @@ usersRouter.post("/login", async (req, res, next) => {
       res.status(201).send({ ok: true });
     } else {
       const err = new Error("User with email and password not found");
-      err.httpStatusCode = 401;
+      err.httpStatusCode = 400;
       next(err);
     }
   } catch (error) {

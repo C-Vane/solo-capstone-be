@@ -57,6 +57,9 @@ const createSocketServer = (io) => {
           try {
             if (room.admin._id == userId) {
               await roomSchema.findOneAndDelete({ _id: roomId, "admin._id": userId });
+              socket.to(roomId).emit("call-end");
+            } else {
+              socket.to(roomId).emit("user-left", userId);
             }
           } catch (err) {
             console.log(err);
