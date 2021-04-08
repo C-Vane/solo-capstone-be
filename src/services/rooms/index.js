@@ -8,7 +8,7 @@ const roomsRouter = express.Router();
 
 roomsRouter.post("/", authorize, async (req, res, next) => {
   try {
-    const newRoom = new roomSchema({ admin: { _id: req.user._id } });
+    const newRoom = new roomSchema({ admin: { user: req.user._id } });
     const { _id } = await newRoom.save();
     if (_id) res.status(201).send({ _id });
     else {

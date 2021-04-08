@@ -2,7 +2,7 @@ const { Schema } = require("mongoose");
 const mongoose = require("mongoose");
 const RoomSchema = new Schema(
   {
-    admin: { _id: { type: Schema.Types.ObjectId, ref: "User", required: true }, socketId: { type: String } },
+    admin: { user: { type: Schema.Types.ObjectId, ref: "User", required: true }, socketId: { type: String } },
     users: [
       {
         userId: { type: Schema.Types.ObjectId, ref: "User" },
