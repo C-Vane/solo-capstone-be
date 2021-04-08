@@ -17,7 +17,7 @@ const createSocketServer = (io) => {
           room.admin.socketId = socket.id;
           await room.save();
 
-          socket.to(roomId).emit("user-connected", `${userId} has joined the room`);
+          socket.to(roomId).emit("user-connected", `${user.firstname} has joined the room`);
         } else {
           //check if the room is private
           if (room && room.private) {
@@ -33,18 +33,18 @@ const createSocketServer = (io) => {
               await room.save();
             } else {
               //if the user is new request to join room
-              const user = userId.length === 24 ? await userSchema.findById(userId) : false;
+              const user = user._id.length === 24 ? await userSchema.findById(user._id) : false;
               const data = user ? { socketId: socket.id, userId: user._id, firstname: user.firstname, lastname: user.lastname, img: user.img } : { socketId: socket.id, ...user };
               room.waitingList = [...room.waitingList, data];
               await room.save();
-              socket.to(room.admin.socketId).emit("user-requested", { userId, socketId: socket.id });
+              socket.to(room.admin.socketId).emit("user-requested", { user, socketId: socket.id });
             }
           } else {
             //if the room is public
             socket.join(roomId);
             socket.to(roomId).emit("user-connected", `${user.firstname} has joined the room`);
             socket.to(socketId).emit("all-users", [...room.users, room.admin]);
-            const user = userId.length === 24 ? await userSchema.findById(userId) : false;
+            const user = user._id.length === 24 ? await userSchema.findById(user._id) : false;
             const data = user ? { socketId: socket.id, userId: user._id, firstname: user.firstname, lastname: user.lastname, img: user.img } : { socketId: socket.id, ...user };
             room.users.push(data);
             await room.save();
@@ -52,7 +52,7 @@ const createSocketServer = (io) => {
         }
         socket.on("disconnect", async () => {
           try {
-            socket.to(roomId).emit("user-disconnected", userId);
+            socket.to(roomId).emit("user-disconnected", user);
           } catch (err) {
             console.log(err);
           }
@@ -75,15 +75,15 @@ const createSocketServer = (io) => {
       //check if room with current id exists
       try {
         const room = await roomSchema.findOne({ _id: roomId, "admin._id": adminId });
-        const user = userId.length === 24 ? await userSchema.findById(userId) : false;
-        const data = user ? { socketId: socket.id, userId: user._id, firstname: user.firstname, lastname: user.lastname, img: user.img } : { socketId: socket.id, ...user };
+        const id = user._id.length === 24 ? await userSchema.findById(user._id) : false;
+        const data = id ? { socketId: socket.id, userId: user._id, firstname: user.firstname, lastname: user.lastname, img: user.img } : { socketId: socket.id, ...user, newUserId: user._id };
 
         if (room) {
           io.sockets.connected[socketId].join(roomId);
           socket.to(roomId).emit("user-connected", `${user.firstname} has joined the room`);
           socket.to(socketId).emit("all-users", [...room.users, room.admin]);
           room.users.push(data);
-          room.waitingList = room.waitingList.filter((user) => user.userId !== userId && user.username !== userId);
+          room.waitingList = room.waitingList.filter((user) => user.userId !== user._id && user.newUserId !== user._id);
           await room.save();
         } else {
           socket.to(roomId).emit("error", "Room not found");
