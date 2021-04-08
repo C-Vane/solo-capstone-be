@@ -102,12 +102,13 @@ const createSocketServer = (io) => {
       socket.to(roomId).broadcast.emit("message", { user, message });
     });
 
-    socket.on("end-call", async (roomId, userId) => {
+    socket.on("end-call", async ({ roomId, userId }) => {
       try {
         const room = await roomSchema.findById(roomId);
+        console.log(roomId, userId, room);
         if (room && room.admin._id == userId) {
           await roomSchema.findByIdAndDelete(roomId);
-          socket.to(roomId).emit("call-end");
+          socket.to(roomId).broadcast.emit("call-end");
         }
         socket.leave(roomId);
       } catch (error) {
