@@ -13,7 +13,16 @@ const RoomSchema = new Schema(
         socketId: { type: String, required: true },
       },
     ],
-    waitingList: [{ userId: { type: Schema.Types.ObjectId, ref: "User" }, username: { type: String }, socketId: { type: String, required: true } }],
+    waitingList: [
+      {
+        userId: { type: Schema.Types.ObjectId, ref: "User" },
+        newUserId: { type: String },
+        firstname: { type: String },
+        lastname: { type: String },
+        img: { type: String },
+        socketId: { type: String, required: true },
+      },
+    ],
     private: { type: Boolean, default: true },
   },
   { timestamps: true }
