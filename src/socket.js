@@ -4,14 +4,14 @@ const userSchema = require("./services/users/schema");
 
 const createSocketServer = (io) => {
   io.on("connection", (socket) => {
-    socket.on("join-room", async (roomId, userId) => {
+    socket.on("join-room", async (roomId, user) => {
       try {
         //check if room exists
         const room = await roomSchema.findById(roomId);
 
         if (!room) throw new Error("Couldn't find room");
 
-        if (room.admin._id == userId) {
+        if (room.admin._id == user._id) {
           //if the user is the admin join
           socket.join(roomId);
           room.admin.socketId = socket.id;
@@ -21,21 +21,20 @@ const createSocketServer = (io) => {
         } else {
           //check if the room is private
           if (room && room.private) {
-            const userAdmited = findElementByObjectKey(room.users, ["userId", "username"], userId);
+            const userAdmited = findElementByObjectKey(room.users, ["userId", "newUserId"], user._id);
 
             //check if user has already been admited
             if (userAdmited !== -1) {
               //if the user has already been admited join the room and update the socket id
               socket.join(roomId);
-
-              socket.to(roomId).emit("user-connected", `${userId} has joined the room`);
+              socket.to(roomId).emit("user-connected", `${user.firstname} has joined the room`);
               socket.emit("all-users", [...room.users, room.admin]);
               room.users[userAdmited].socketId = socket.id;
               await room.save();
             } else {
               //if the user is new request to join room
               const user = userId.length === 24 ? await userSchema.findById(userId) : false;
-              const data = user ? { socketId: socket.id, userId: user._id, username: `${user.firstname} ${user.lastname}  ` } : { socketId: socket.id, username: userId };
+              const data = user ? { socketId: socket.id, userId: user._id, firstname: user.firstname, lastname: user.lastname, img: user.img } : { socketId: socket.id, ...user };
               room.waitingList = [...room.waitingList, data];
               await room.save();
               socket.to(room.admin.socketId).emit("user-requested", { userId, socketId: socket.id });
@@ -43,10 +42,10 @@ const createSocketServer = (io) => {
           } else {
             //if the room is public
             socket.join(roomId);
-            socket.to(roomId).emit("user-connected", `${userId} has joined the room`);
-            socket.emit("all-users", [...room.users, room.admin]);
+            socket.to(roomId).emit("user-connected", `${user.firstname} has joined the room`);
+            socket.to(socketId).emit("all-users", [...room.users, room.admin]);
             const user = userId.length === 24 ? await userSchema.findById(userId) : false;
-            const data = user ? { socketId: socket.id, userId: user._id } : { socketId: socket.id, username: userId };
+            const data = user ? { socketId: socket.id, userId: user._id, firstname: user.firstname, lastname: user.lastname, img: user.img } : { socketId: socket.id, ...user };
             room.users.push(data);
             await room.save();
           }
@@ -72,22 +71,22 @@ const createSocketServer = (io) => {
     });
 
     socket.on("admit-user", async (payload) => {
-      const { roomId, adminId, userId, socketId } = payload;
+      const { roomId, adminId, user, socketId } = payload;
       //check if room with current id exists
       try {
         const room = await roomSchema.findOne({ _id: roomId, "admin._id": adminId });
         const user = userId.length === 24 ? await userSchema.findById(userId) : false;
-        const data = user ? { socketId, userId: user._id } : { socketId, username: userId };
+        const data = user ? { socketId: socket.id, userId: user._id, firstname: user.firstname, lastname: user.lastname, img: user.img } : { socketId: socket.id, ...user };
 
         if (room) {
           io.sockets.connected[socketId].join(roomId);
-          socket.emit("user-connected", `${userId} has joined the room`);
+          socket.to(roomId).emit("user-connected", `${user.firstname} has joined the room`);
           socket.to(socketId).emit("all-users", [...room.users, room.admin]);
           room.users.push(data);
           room.waitingList = room.waitingList.filter((user) => user.userId !== userId && user.username !== userId);
           await room.save();
         } else {
-          socket.emit("error", "Room not found");
+          socket.to(roomId).emit("error", "Room not found");
         }
       } catch (error) {
         console.log(error);
