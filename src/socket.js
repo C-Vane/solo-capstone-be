@@ -79,14 +79,16 @@ const createSocketServer = (io) => {
       //check if room with current id exists
       try {
         const room = await roomSchema.findOne({ _id: roomId, "admin.user": adminId }).populate("admin.user", "firstname lastname _id img");
-        const objectRoom = room.toObject();
 
         if (room) {
+          const objectRoom = room.toObject();
           io.sockets.connected[user.socketId].join(roomId);
           socket.to(roomId).emit("user-connected", `${user.firstname} has joined the room`);
           socket.to(user.socketId).emit("all-users", [...room.users, { socketId: objectRoom.admin.socketId, ...objectRoom.admin.user }]);
           room.users.push(user);
-          room.waitingList = room.waitingList.filter((oldUser) => oldUser !== user);
+          const index = room.waitingList.findIndex((oldUser) => oldUser._id == user._id);
+          room.waitingList = [...room.waitingList.slice(0, index), ...room.waitingList.slice(index + 1)];
+          console.log(room.waitingList);
           await room.save();
         } else {
           socket.to(roomId).emit("error", "Room not found");
@@ -96,11 +98,12 @@ const createSocketServer = (io) => {
       }
     });
 
-    socket.on("subtitles", (roomId, subtitles, user) => {
-      socket.to(roomId).broadcast.emit("subtitles", { subtitles, user });
+    socket.on("subtitles", ({ roomId, subtitles, user }) => {
+      console.log(subtitles, roomId, user);
+      socket.to(roomId).emit("text", { subtitles, user: user._id });
     });
 
-    socket.on("message", (roomId, user, message) => {
+    socket.on("message", ({ roomId, user, message }) => {
       socket.to(roomId).broadcast.emit("message", { user, message });
     });
 
