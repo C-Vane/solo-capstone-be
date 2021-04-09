@@ -8,7 +8,7 @@ const createSocketServer = (io) => {
       try {
         //check if room exists
         const room = await roomSchema.findById(roomId).populate("admin.user", "firstname lastname _id img");
-        console.log(room);
+
         if (!room) throw new Error("Couldn't find room");
 
         if (room.admin.user._id == user._id) {
@@ -76,15 +76,15 @@ const createSocketServer = (io) => {
 
     socket.on("admit-user", async (payload) => {
       const { roomId, adminId, user } = payload;
-      console.log(payload);
       //check if room with current id exists
       try {
         const room = await roomSchema.findOne({ _id: roomId, "admin.user": adminId }).populate("admin.user", "firstname lastname _id img");
+        const objectRoom = room.toObject();
 
         if (room) {
           io.sockets.connected[user.socketId].join(roomId);
           socket.to(roomId).emit("user-connected", `${user.firstname} has joined the room`);
-          socket.emit("all-users", [...room.users, { socketId: room.admin.socketId, ...room.admin.user }]);
+          socket.to(user.socketId).emit("all-users", [...room.users, { socketId: objectRoom.admin.socketId, ...objectRoom.admin.user }]);
           room.users.push(user);
           room.waitingList = room.waitingList.filter((oldUser) => oldUser !== user);
           await room.save();
@@ -107,7 +107,6 @@ const createSocketServer = (io) => {
     socket.on("end-call", async ({ roomId, userId }) => {
       try {
         const room = await roomSchema.findById(roomId);
-        console.log(roomId, userId, room);
         if (room && room.admin.user._id == userId) {
           await roomSchema.findByIdAndDelete(roomId);
           socket.to(roomId).broadcast.emit("call-end");
