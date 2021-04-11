@@ -56,7 +56,17 @@ const createSocketServer = (io) => {
         }
         socket.on("disconnect", async () => {
           try {
-            socket.to(roomId).emit("user-disconnected", socket.id);
+            const index = room.users.findIndex((oldUser) => oldUser.socketId === socket.id);
+            if (index !== -1) {
+              const updatedUser = room.users[index].toObject();
+              delete updatedUser.socketId;
+              room.users = [...room.users.slice(0, index), updatedUser, ...room.users.slice(index + 1)];
+              await room.save();
+              socket.to(roomId).emit("user-disconnected", socket.id);
+            }
+            if (room.admin.socketId === socket.id) {
+              (room.admin.socketId = ""), await room.save();
+            }
           } catch (err) {
             console.log(err);
           }
@@ -96,7 +106,23 @@ const createSocketServer = (io) => {
         console.log(error);
       }
     });
-
+    socket.on("decline-user", async (payload) => {
+      const { roomId, adminId, user } = payload;
+      //check if room with current id exists
+      try {
+        const room = await roomSchema.findOne({ _id: roomId, "admin.user": adminId }).populate("admin.user", "firstname lastname _id img");
+        if (room) {
+          socket.to(user.socketId).emit("call-end");
+          const index = room.waitingList.findIndex((oldUser) => oldUser._id == user._id);
+          room.waitingList = [...room.waitingList.slice(0, index), ...room.waitingList.slice(index + 1)];
+          await room.save();
+        } else {
+          socket.to(roomId).emit("error", "Room not found");
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    });
     socket.on("subtitles", ({ roomId, subtitles, user }) => {
       socket.to(roomId).emit("text", { subtitles, user: user._id });
     });
@@ -113,9 +139,8 @@ const createSocketServer = (io) => {
         const index = room.users.findIndex((oldUser) => oldUser.socketId === socketId);
         room.users = [...room.users.slice(0, index), ...room.users.slice(index + 1)];
         await room.save();
+        socket.to(socketId).emit("call-end");
       }
-      io.sockets.sockets[socketId].leave(roomID);
-      socket.to(socketId).emit("call-end");
     });
     socket.on("end-call", async ({ roomId, userId }) => {
       try {
