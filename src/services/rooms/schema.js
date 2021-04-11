@@ -24,6 +24,7 @@ const RoomSchema = new Schema(
       },
     ],
     private: { type: Boolean, default: true },
+    chat: { type: Boolean, default: true },
   },
   { timestamps: true }
 );

@@ -181,4 +181,66 @@ usersRouter.get("/me", authorize, async (req, res, next) => {
     next(error);
   }
 });
+
+usersRouter.delete("/me", authorize, async (req, res, next) => {
+  try {
+    if (req.user) {
+      await req.user.deleteOne(res.send("Deleted"));
+    } else {
+      const error = new Error(`user with id ${req.params.id} not found`);
+      error.httpStatusCode = 404;
+      next(error);
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+
+usersRouter.put("/me", authorize, async (req, res, next) => {
+  try {
+    if (req.user) {
+      const updates = Object.keys(req.body).filter((key) => key !== "password");
+      updates.forEach((update) => (req.user[update] = req.body[update]));
+      await req.user.save();
+      res.send(req.user);
+    } else {
+      const error = new Error(`user with id ${req.params.id} not found`);
+      error.httpStatusCode = 404;
+      next(error);
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+
+usersRouter.put("/me/changePassword", authorize, async (req, res, next) => {
+  try {
+    if (req.user) {
+      const user = await UserSchema.changePassword(req.user._id, req.body.oldPassword, req.body.newPassword);
+      user ? res.status(201).send("Password changed") : res.status(401).send("Incorrect password Provided");
+    } else {
+      const error = new Error(`user with id ${req.params.id} not found`);
+      error.httpStatusCode = 404;
+      next(error);
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+/* usersRouter.put("/me/profileImage", authorize, parser.single("image"), async (req, res, next) => {
+  try {
+    if (req.user) {
+      req.user.img = req.file.path;
+      await req.user.save();
+      res.send(req.user);
+    } else {
+      const error = new Error(`user with id ${req.params.id} not found`);
+      error.httpStatusCode = 404;
+      next(error);
+    }
+  } catch (error) {
+    next(error);
+  }
+}); */
+
 module.exports = usersRouter;

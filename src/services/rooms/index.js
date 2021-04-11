@@ -21,9 +21,24 @@ roomsRouter.post("/", authorize, async (req, res, next) => {
   }
 });
 
-roomsRouter.post("/join", async (req, res, next) => {
+roomsRouter.put("/:id", authorize, async (req, res, next) => {
   try {
-  } catch (error) {}
+    const updated = await roomSchema.findOneAndUpdate({ _id: req.params.id, "admin.user": req.user._id }, req.body, {
+      new: true,
+      useFindAndModify: false,
+      runValidators: true,
+    });
+
+    if (updated) {
+      res.status(201).send(updated);
+    } else {
+      const err = new Error("Wrong request");
+      err.status = 404;
+      next(err);
+    }
+  } catch (error) {
+    next(error);
+  }
 });
 
 roomsRouter.get("/:roomId", async (req, res, next) => {

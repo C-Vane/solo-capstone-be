@@ -88,7 +88,6 @@ const createSocketServer = (io) => {
           room.users.push(user);
           const index = room.waitingList.findIndex((oldUser) => oldUser._id == user._id);
           room.waitingList = [...room.waitingList.slice(0, index), ...room.waitingList.slice(index + 1)];
-          console.log(room.waitingList);
           await room.save();
         } else {
           socket.to(roomId).emit("error", "Room not found");
@@ -99,22 +98,37 @@ const createSocketServer = (io) => {
     });
 
     socket.on("subtitles", ({ roomId, subtitles, user }) => {
-      console.log(subtitles, roomId, user);
       socket.to(roomId).emit("text", { subtitles, user: user._id });
     });
 
-    socket.on("message", ({ roomId, user, message }) => {
-      socket.to(roomId).broadcast.emit("message", { user, message });
+    socket.on("send-message", ({ roomId, user, message }) => {
+      io.in(roomId).emit("message", { user, message, createdAt: new Date() });
     });
-
+    socket.on("mute-user", (userId) => {
+      socket.to(userId).emit("mute");
+    });
+    socket.on("kick-out", async ({ socketId, roomID }) => {
+      const room = await roomSchema.findById(roomID);
+      if (room) {
+        const index = room.users.findIndex((oldUser) => oldUser.socketId === socketId);
+        room.users = [...room.users.slice(0, index), ...room.users.slice(index + 1)];
+        await room.save();
+      }
+      io.sockets.sockets[socketId].leave(roomID);
+      socket.to(socketId).emit("call-end");
+    });
     socket.on("end-call", async ({ roomId, userId }) => {
       try {
         const room = await roomSchema.findById(roomId);
-        if (room && room.admin.user._id == userId) {
+        if (room && room.admin.user == userId) {
           await roomSchema.findByIdAndDelete(roomId);
           socket.to(roomId).broadcast.emit("call-end");
         }
-        socket.leave(roomId);
+        if (room) {
+          const index = room.users.findIndex((oldUser) => oldUser._id === userId);
+          room.users = [...room.users.slice(0, index), ...room.users.slice(index + 1)];
+          await room.save();
+        }
       } catch (error) {
         console.log(error);
       }

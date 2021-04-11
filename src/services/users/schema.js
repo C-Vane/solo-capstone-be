@@ -53,6 +53,19 @@ UserSchema.statics.findByCredentials = async function (email, password) {
     return null;
   }
 };
+UserSchema.statics.changePassword = async function (userId, oldPassword, newPassword) {
+  const user = await this.findById(userId);
+  if (user) {
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    if (isMatch) {
+      user.password = newPassword;
+      user.save();
+      return true;
+    } else return false;
+  } else {
+    return false;
+  }
+};
 UserSchema.pre("validate", async function (next) {
   const user = this;
   const plainPW = user.password;
