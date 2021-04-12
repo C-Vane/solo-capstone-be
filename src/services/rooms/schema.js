@@ -10,7 +10,7 @@ const RoomSchema = new Schema(
         firstname: { type: String },
         lastname: { type: String },
         img: { type: String },
-        socketId: { type: String, required: true },
+        socketId: { type: String },
       },
     ],
     waitingList: [

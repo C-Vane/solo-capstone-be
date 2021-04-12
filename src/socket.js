@@ -8,7 +8,8 @@ const createSocketServer = (io) => {
       try {
         //check if room exists
         const room = await roomSchema.findById(roomId).populate("admin.user", "firstname lastname _id img");
-
+        socket.room = roomId;
+        socket.socketId = socket.id;
         if (!room) throw new Error("Couldn't find room");
 
         if (room.admin.user._id == user._id) {
@@ -17,11 +18,10 @@ const createSocketServer = (io) => {
           room.admin.socketId = socket.id;
           await room.save();
           socket.emit("all-users", [...room.users]);
-          socket.to(roomId).emit("user-connected", `${user.firstname} has joined the room`);
         } else {
           //check if the room is private
           if (room && room.private) {
-            const userAdmited = findElementByObjectKey(room.users, ["userId", "newUserId"], user._id);
+            const userAdmited = findElementByObjectKey(room.users, ["userId", "newUserId", "_id"], user._id);
 
             //check if user has already been admited
             if (userAdmited !== -1) {
@@ -33,6 +33,9 @@ const createSocketServer = (io) => {
               await room.save();
             } else {
               //if the user is new request to join room
+              const userInRequestList = findElementByObjectKey(room.waitingList, ["userId", "newUserId", "_id"], user._id);
+              //check if not already in request room
+              if (userInRequestList !== -1) return;
               const id = user._id.length === 24 ? await userSchema.findById(user._id) : false;
               const data = id
                 ? { socketId: socket.id, userId: user._id, firstname: user.firstname, lastname: user.lastname, img: user.img }
@@ -56,16 +59,22 @@ const createSocketServer = (io) => {
         }
         socket.on("disconnect", async () => {
           try {
-            const index = room.users.findIndex((oldUser) => oldUser.socketId === socket.id);
-            if (index !== -1) {
-              const updatedUser = room.users[index].toObject();
-              delete updatedUser.socketId;
-              room.users = [...room.users.slice(0, index), updatedUser, ...room.users.slice(index + 1)];
-              await room.save();
-              socket.to(roomId).emit("user-disconnected", socket.id);
-            }
-            if (room.admin.socketId === socket.id) {
-              (room.admin.socketId = ""), await room.save();
+            console.log("line 61", socket.socketId, socket.room);
+            const room = await roomSchema.findById(socket.room).populate("admin.user", "firstname lastname _id img");
+            if (room) {
+              const index = room.users.findIndex((oldUser) => oldUser.socketId === socket.socketId);
+              if (index !== -1) {
+                const updatedUser = room.users[index].toObject();
+                delete updatedUser.socketId;
+                console.log(updatedUser);
+                room.users = [...room.users.slice(0, index), updatedUser, ...room.users.slice(index + 1)];
+                await room.save();
+              }
+              if (room.admin.socketId === socket.id) {
+                room.admin.socketId = "";
+                await room.save();
+              }
+              socket.to(socket.room).emit("user-disconnected", socket.socketId);
             }
           } catch (err) {
             console.log(err);
@@ -87,12 +96,13 @@ const createSocketServer = (io) => {
     socket.on("admit-user", async (payload) => {
       const { roomId, adminId, user } = payload;
       //check if room with current id exists
+      console.log("Admit user", user.firstname);
       try {
         const room = await roomSchema.findOne({ _id: roomId, "admin.user": adminId }).populate("admin.user", "firstname lastname _id img");
-
         if (room) {
+          if (findElementByObjectKey(room.users, ["socketId"], user.socketId) !== -1) return;
           const objectRoom = room.toObject();
-          io.sockets.connected[user.socketId].join(roomId);
+          io.sockets.connected[user.socketId] && io.sockets.connected[user.socketId].join(roomId);
           socket.to(roomId).emit("user-connected", `${user.firstname} has joined the room`);
           socket.to(user.socketId).emit("all-users", [...room.users, { socketId: objectRoom.admin.socketId, ...objectRoom.admin.user }]);
           room.users.push(user);
@@ -100,7 +110,7 @@ const createSocketServer = (io) => {
           room.waitingList = [...room.waitingList.slice(0, index), ...room.waitingList.slice(index + 1)];
           await room.save();
         } else {
-          socket.to(roomId).emit("error", "Room not found");
+          socket.to(room.admin.socketId).emit("error", "Room not found");
         }
       } catch (error) {
         console.log(error);
@@ -137,9 +147,12 @@ const createSocketServer = (io) => {
       const room = await roomSchema.findById(roomID);
       if (room) {
         const index = room.users.findIndex((oldUser) => oldUser.socketId === socketId);
-        room.users = [...room.users.slice(0, index), ...room.users.slice(index + 1)];
-        await room.save();
-        socket.to(socketId).emit("call-end");
+        if (index !== -1) {
+          room.users = [...room.users.slice(0, index), ...room.users.slice(index + 1)];
+          await room.save();
+          socket.to(socketId).emit("call-end");
+          socket.to(roomID).emit("user-left", socket.id);
+        }
       }
     });
     socket.on("end-call", async ({ roomId, userId }) => {
@@ -148,11 +161,25 @@ const createSocketServer = (io) => {
         if (room && room.admin.user == userId) {
           await roomSchema.findByIdAndDelete(roomId);
           socket.to(roomId).broadcast.emit("call-end");
+          return;
         }
         if (room) {
-          const index = room.users.findIndex((oldUser) => oldUser._id === userId);
-          room.users = [...room.users.slice(0, index), ...room.users.slice(index + 1)];
-          await room.save();
+          const index = findElementByObjectKey(room.users, ["userId", "newUserId", "_id"], userId);
+          console.log(index);
+          if (index !== -1) {
+            room.users = [...room.users.slice(0, index), ...room.users.slice(index + 1)];
+            await room.save();
+            socket.to(roomId).broadcast.emit("user-left", socket.id);
+            return;
+          }
+          const indexWaiting = findElementByObjectKey(room.waitingList, ["userId", "newUserId", "_id"], userId);
+
+          if (indexWaiting !== -1) {
+            room.waitingList = [...room.waitingList.slice(0, indexWaiting), ...room.waitingList.slice(indexWaiting + 1)];
+            await room.save();
+            socket.to(roomId).broadcast.emit("user-left", socket.id);
+            return;
+          }
         }
       } catch (error) {
         console.log(error);
