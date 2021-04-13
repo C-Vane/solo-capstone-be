@@ -8,6 +8,7 @@ const createSocketServer = (io) => {
       try {
         //check if room exists
         const room = await roomSchema.findById(roomId).populate("admin.user", "firstname lastname _id img");
+        const roomObject = room.toObject();
         socket.room = roomId;
         socket.socketId = socket.id;
         if (!room) throw new Error("Couldn't find room");
@@ -17,46 +18,50 @@ const createSocketServer = (io) => {
           socket.join(roomId);
           room.admin.socketId = socket.id;
           await room.save();
-          socket.emit("all-users", [...room.users]);
-        } else {
-          //check if the room is private
-          if (room && room.private) {
-            const userAdmited = findElementByObjectKey(room.users, ["userId", "newUserId", "_id"], user._id);
-
-            //check if user has already been admited
-            if (userAdmited !== -1) {
-              //if the user has already been admited join the room and update the socket id
-              socket.join(roomId);
-              socket.to(roomId).emit("user-connected", `${user.firstname} has joined the room`);
-              socket.emit("all-users", [...room.users, { socketId: room.admin.socketId, ...room.admin.user }]);
-              room.users[userAdmited].socketId = socket.id;
-              await room.save();
-            } else {
-              //if the user is new request to join room
-              const userInRequestList = findElementByObjectKey(room.waitingList, ["userId", "newUserId", "_id"], user._id);
-              //check if not already in request room
-              if (userInRequestList !== -1) return;
-              const id = user._id.length === 24 ? await userSchema.findById(user._id) : false;
-              const data = id
-                ? { socketId: socket.id, userId: user._id, firstname: user.firstname, lastname: user.lastname, img: user.img }
-                : { socketId: socket.id, firstname: user.firstname, lastname: user.lastname, img: user.img, newUserId: user._id };
-              room.waitingList = [...room.waitingList, data];
-              await room.save();
-              socket.to(room.admin.socketId).emit("user-requested", room.waitingList);
-            }
-          } else {
-            //if the room is public
-            socket.join(roomId);
-            socket.to(roomId).emit("user-connected", `${user.firstname} has joined the room`);
-            socket.emit("all-users", [...room.users, { socketId: room.admin.socketId, ...room.admin.user }]);
-            const id = user._id.length === 24 ? await userSchema.findById(user._id) : false;
-            const data = id
-              ? { socketId: socket.id, userId: user._id, firstname: user.firstname, lastname: user.lastname, img: user.img }
-              : { socketId: socket.id, firstname: user.firstname, lastname: user.lastname, img: user.img, newUserId: user._id };
-            room.users.push(data);
-            await room.save();
-          }
+          socket.emit("all-users", [...roomObject.users]);
+          return;
         }
+        //check if the room is private
+        const userAdmited = findElementByObjectKey(room.users, ["userId", "newUserId", "_id"], user._id);
+
+        //check if user has already been admited
+        if (userAdmited !== -1) {
+          //if the user has already been admited join the room and update the socket id
+          socket.join(roomId);
+          socket.to(roomId).emit("user-connected", `${user.firstname} has joined the room`);
+          console.log("admin", { ...roomObject.admin.user, socketId: roomObject.admin.socketId });
+          socket.emit("all-users", [...roomObject.users, { socketId: roomObject.admin.socketId, ...roomObject.admin.user }]);
+          room.users[userAdmited].socketId = socket.id;
+          await room.save();
+          return;
+        }
+
+        if (room && room.private) {
+          //if the user is new request to join room
+          const userInRequestList = findElementByObjectKey(room.waitingList, ["userId", "newUserId", "_id"], user._id);
+          //check if not already in request room
+          if (userInRequestList !== -1 || !user.firstname) return;
+          const id = user._id.length === 24 ? await userSchema.findById(user._id) : false;
+          const data = id
+            ? { socketId: socket.id, userId: user._id, firstname: user.firstname, lastname: user.lastname, img: user.img }
+            : { socketId: socket.id, firstname: user.firstname, lastname: user.lastname, img: user.img, newUserId: user._id };
+          room.waitingList = [...roomObject.waitingList, data];
+          await room.save();
+          socket.to(room.admin.socketId).emit("user-requested", room.waitingList);
+        } else {
+          //if the room is public
+          socket.join(roomId);
+          socket.to(roomId).emit("user-connected", `${user.firstname} has joined the room`);
+          console.log("admin", { ...roomObject.admin.user, socketId: room.admin.socketId });
+          socket.emit("all-users", [...roomObject.users]);
+          const id = user._id.length === 24 ? await userSchema.findById(user._id) : false;
+          const data = id
+            ? { socketId: socket.id, userId: user._id, firstname: user.firstname, lastname: user.lastname, img: user.img }
+            : { socketId: socket.id, firstname: user.firstname, lastname: user.lastname, img: user.img, newUserId: user._id };
+          room.users.push(data);
+          await room.save();
+        }
+
         socket.on("disconnect", async () => {
           try {
             console.log("line 61", socket.socketId, socket.room);
@@ -67,7 +72,7 @@ const createSocketServer = (io) => {
                 const updatedUser = room.users[index].toObject();
                 delete updatedUser.socketId;
                 console.log(updatedUser);
-                room.users = [...room.users.slice(0, index), updatedUser, ...room.users.slice(index + 1)];
+                room.users = [...roomObject.users.slice(0, index), updatedUser, ...roomObject.users.slice(index + 1)];
                 await room.save();
               }
               if (room.admin.socketId === socket.id) {
