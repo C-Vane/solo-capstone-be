@@ -27,6 +27,8 @@ const createSocketServer = (io) => {
         //check if user has already been admited
         if (userAdmited !== -1) {
           //if the user has already been admited join the room and update the socket id
+
+          if (room.users[userAdmited].socketId) return;
           socket.join(roomId);
           socket.to(roomId).emit("user-connected", `${user.firstname} has joined the room`);
           socket.emit("all-users", [...roomObject.users, { socketId: roomObject.admin.socketId, ...roomObject.admin.user }]);
