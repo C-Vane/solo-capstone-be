@@ -29,7 +29,6 @@ const createSocketServer = (io) => {
           //if the user has already been admited join the room and update the socket id
           socket.join(roomId);
           socket.to(roomId).emit("user-connected", `${user.firstname} has joined the room`);
-          console.log("admin", { ...roomObject.admin.user, socketId: roomObject.admin.socketId });
           socket.emit("all-users", [...roomObject.users, { socketId: roomObject.admin.socketId, ...roomObject.admin.user }]);
           room.users[userAdmited].socketId = socket.id;
           await room.save();
@@ -52,8 +51,8 @@ const createSocketServer = (io) => {
           //if the room is public
           socket.join(roomId);
           socket.to(roomId).emit("user-connected", `${user.firstname} has joined the room`);
-          console.log("admin", { ...roomObject.admin.user, socketId: room.admin.socketId });
-          socket.emit("all-users", [...roomObject.users]);
+
+          socket.emit("all-users", [...roomObject.users, { socketId: roomObject.admin.socketId, ...roomObject.admin.user }]);
           const id = user._id.length === 24 ? await userSchema.findById(user._id) : false;
           const data = id
             ? { socketId: socket.id, userId: user._id, firstname: user.firstname, lastname: user.lastname, img: user.img }
@@ -64,14 +63,13 @@ const createSocketServer = (io) => {
 
         socket.on("disconnect", async () => {
           try {
-            console.log("line 61", socket.socketId, socket.room);
             const room = await roomSchema.findById(socket.room).populate("admin.user", "firstname lastname _id img");
             if (room) {
               const index = room.users.findIndex((oldUser) => oldUser.socketId === socket.socketId);
               if (index !== -1) {
                 const updatedUser = room.users[index].toObject();
                 delete updatedUser.socketId;
-                console.log(updatedUser);
+
                 room.users = [...roomObject.users.slice(0, index), updatedUser, ...roomObject.users.slice(index + 1)];
                 await room.save();
               }
@@ -101,7 +99,6 @@ const createSocketServer = (io) => {
     socket.on("admit-user", async (payload) => {
       const { roomId, adminId, user } = payload;
       //check if room with current id exists
-      console.log("Admit user", user.firstname);
       try {
         const room = await roomSchema.findOne({ _id: roomId, "admin.user": adminId }).populate("admin.user", "firstname lastname _id img");
         if (room) {
@@ -170,7 +167,6 @@ const createSocketServer = (io) => {
         }
         if (room) {
           const index = findElementByObjectKey(room.users, ["userId", "newUserId", "_id"], userId);
-          console.log(index);
           if (index !== -1) {
             room.users = [...room.users.slice(0, index), ...room.users.slice(index + 1)];
             await room.save();
