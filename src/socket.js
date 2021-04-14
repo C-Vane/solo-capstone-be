@@ -140,6 +140,13 @@ const createSocketServer = (io) => {
     socket.on("subtitles", ({ roomId, subtitles, user }) => {
       socket.to(roomId).emit("text", { subtitles, user: user._id });
     });
+    socket.on("video-background", ({ roomId, blur, user }) => {
+      socket.to(roomId).emit("set-video-background", { blur, user: user._id });
+    });
+
+    socket.on("send-reaction", ({ roomId, reaction, user }) => {
+      socket.to(roomId).emit("reaction", { reaction, user: user._id });
+    });
 
     socket.on("send-message", ({ roomId, user, message }) => {
       io.in(roomId).emit("message", { user, message, createdAt: new Date() });
