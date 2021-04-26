@@ -162,7 +162,7 @@ const createSocketServer = (io) => {
           room.users = [...room.users.slice(0, index), ...room.users.slice(index + 1)];
           await room.save();
           socket.to(socketId).emit("call-end");
-          socket.to(roomID).emit("user-left", socket.id);
+          socket.to(roomID).emit("user-left", socketId);
         }
       }
     });
