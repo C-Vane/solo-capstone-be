@@ -18,14 +18,12 @@ passport.use(
         facebookId: profile.id,
         firstname: profile.name.givenName,
         lastname: profile.name.familyName,
-        username: profile.displayName || profile.name.givenName + profile.name.familyName,
         email: profile.emails[0].value || "",
         img: "https://thumbs.dreamstime.com/b/default-avatar-profile-trendy-style-social-media-user-icon-187599373.jpg",
       };
 
       try {
-        const user = await UserModel.findOne({ facebookId: profile.id });
-
+        const user = await UserModel.findOne({ $or: [{ facebookId: profile.id }, { email: newUser.email }] });
         if (user) {
           const tokens = await authenticate(user);
           next(null, { user, tokens });
@@ -55,13 +53,12 @@ passport.use(
         googleId: profile.id,
         firstname: profile.name.givenName,
         lastname: profile.name.familyName,
-        username: profile.displayName || profile.name.givenName + profile.name.familyName,
         email: profile.emails[0].value,
         img: "https://thumbs.dreamstime.com/b/default-avatar-profile-trendy-style-social-media-user-icon-187599373.jpg",
       };
 
       try {
-        const user = await UserModel.findOne({ googleId: profile.id });
+        const user = await UserModel.findOne({ $or: [{ googleId: profile.id }, { email: newUser.email }] });
 
         if (user) {
           const tokens = await authenticate(user);
