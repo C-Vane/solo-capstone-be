@@ -40,10 +40,14 @@ usersRouter.get("/facebookRedirect", passport.authenticate("facebook"), async (r
   try {
     res.cookie("token", req.user.tokens.token, {
       httpOnly: true,
+      sameSite: "none",
+      secure: true,
     });
     res.cookie("refreshToken", req.user.tokens.refreshToken, {
       httpOnly: true,
       path: "/users/refreshToken",
+      sameSite: "none",
+      secure: true,
     });
     res.status(200).redirect(process.env.FE_PROD_URL || process.env.FE_DEV_URL);
   } catch (error) {
