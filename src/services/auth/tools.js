@@ -17,7 +17,7 @@ const authenticate = async (user) => {
 
 const generateJWT = (payload) =>
   new Promise((res, rej) =>
-    jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "15m" }, (err, token) => {
+    jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1hr" }, (err, token) => {
       if (err) rej(err);
       res(token);
     })
@@ -33,7 +33,7 @@ const verifyJWT = (token) =>
 
 const generateRefreshJWT = (payload) =>
   new Promise((res, rej) =>
-    jwt.sign(payload, process.env.REFRESH_JWT_SECRET, { expiresIn: "1 week" }, (err, token) => {
+    jwt.sign(payload, process.env.REFRESH_JWT_SECRET, { expiresIn: "7d" }, (err, token) => {
       if (err) rej(err);
       res(token);
     })
