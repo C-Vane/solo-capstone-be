@@ -1,3 +1,4 @@
+const { permittedCrossDomainPolicies } = require("helmet");
 const { findElementByObjectKey } = require("./services/auth/tools");
 const roomSchema = require("./services/rooms/schema");
 const userSchema = require("./services/users/schema");
@@ -138,7 +139,12 @@ const createSocketServer = (io) => {
       }
     });
     socket.on("subtitles", ({ roomId, subtitles, user }) => {
+      socket.to(roomId).emit("activity", { socketId: socket.id });
       socket.to(roomId).emit("text", { subtitles, user: user._id });
+    });
+
+    socket.on("active", ({ roomId, user, sound }) => {
+      socket.to(roomId).emit("activity", { socketId: socket.id, sound });
     });
     socket.on("video-background", ({ roomId, blur, user }) => {
       socket.to(roomId).emit("set-video-background", { blur, user: user._id });
